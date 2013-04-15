@@ -1,0 +1,9 @@
+
+{"friendlyVersion": "0.1",
+ "versionDefName": "TIMER_RESOURCES",
+ "media": [
+     {"type":"font",
+      "defName":"FONT_ROBOTO_32",
+      "file":"fonts/Roboto/Roboto-Bold_32.ttf"}
+	  ]
+}
