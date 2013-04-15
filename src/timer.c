@@ -8,7 +8,7 @@
 #define MY_UUID { 0x61, 0x8C, 0xA5, 0x8D, 0xC0, 0xEB, 0x49, 0xDB, 0x98, 0x56, 0x03, 0x40, 0x36, 0xAE, 0xBC, 0x45 }
 PBL_APP_INFO(MY_UUID,
              "Timer", "Micah Wylde",
-             0, 1, /* App version */
+             0, 2, /* App version */
              DEFAULT_MENU_ICON,
              APP_INFO_STANDARD_APP);
 
@@ -102,6 +102,10 @@ void select_pressed(ClickRecognizerRef recognizer, Window *window) {
   }
 }
 
+void select_long_release_handler(ClickRecognizerRef recognizer, Window *window) {
+  // This is needed to avoid missing clicks. Seems to be a bug in the SDK.
+}
+
 void increment_time(int direction) {
   if (current_state == SETTING) {
     switch (setting_unit) {
@@ -135,6 +139,7 @@ void reset_timer(ClickRecognizerRef recognizer, Window *window) {
   }
 }
 
+
 void main_click_provider(ClickConfig **config, Window *window) {
   // See ui/click.h for more information and default values.
 
@@ -148,6 +153,8 @@ void main_click_provider(ClickConfig **config, Window *window) {
   config[BUTTON_ID_SELECT]->multi_click.min = 2;
   config[BUTTON_ID_SELECT]->multi_click.max = 2;
 
+  config[BUTTON_ID_SELECT]->long_click.release_handler = 
+    (ClickHandler) select_long_release_handler;
 
   config[BUTTON_ID_SELECT]->long_click.delay_ms = 700;
 
