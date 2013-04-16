@@ -9,7 +9,7 @@
 PBL_APP_INFO(MY_UUID,
              "Timer", "Micah Wylde",
              0, 2, /* App version */
-             DEFAULT_MENU_ICON,
+             RESOURCE_ID_IMAGE_MENU_ICON,
              APP_INFO_STANDARD_APP);
 
 enum State {
