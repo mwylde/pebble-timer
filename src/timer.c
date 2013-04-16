@@ -29,6 +29,7 @@ enum State current_state = DONE;
 
 int total_seconds = 5 * 60;
 int current_seconds = 5 * 60;
+int last_set_time = -1;
 
 // Setting state
 
@@ -41,6 +42,10 @@ enum SettingUnit {
 enum SettingUnit setting_unit = SETTING_MINUTE;
 
 void update_time() {
+  if (current_seconds == last_set_time) {
+    return;
+  }
+
   static char time_text[] = "00:00:00";
 
   PblTm time;
@@ -51,10 +56,13 @@ void update_time() {
   string_format_time(time_text, sizeof(time_text), "%T", &time);
 
   text_layer_set_text(&count_down, time_text);
+
+  last_set_time = current_seconds;
 }
 
 
 Layer unit_marker;
+bool setting_blink_state = true;
 
 void draw_setting_unit() {
   layer_mark_dirty(&unit_marker);  
@@ -79,7 +87,7 @@ void unit_marker_update_callback(Layer *me, GContext* ctx) {
   int width = 32;
   int start = 8 + (width + 14) * setting_unit;
 
-  if (current_state == SETTING) {
+  if (current_state == SETTING && setting_blink_state) {
     graphics_context_set_stroke_color(ctx, GColorBlack);
 
     graphics_draw_line(ctx, GPoint(start, 96), GPoint(start + width, 96));
@@ -92,6 +100,7 @@ void unit_marker_update_callback(Layer *me, GContext* ctx) {
 void select_pressed(ClickRecognizerRef recognizer, Window *window) {
   if (current_state == SETTING) {
     setting_unit = (setting_unit + 1) % 3;
+    setting_blink_state = true;
     draw_setting_unit();
   }
   else if (current_state == PAUSED || current_state == DONE) {
@@ -114,8 +123,9 @@ void increment_time(int direction) {
     default: break;
     }
 
-    if (total_seconds + direction >= 0) {
-      total_seconds += direction;
+    int new_seconds = total_seconds + direction;
+    if (new_seconds >= 0 && new_seconds < 100 * 60 * 60) {
+      total_seconds = new_seconds;
       current_seconds = total_seconds;
       update_time();
     }
@@ -185,6 +195,12 @@ void handle_second_waiting() {
   update_time();
 }
 
+
+void handle_second_setting() {
+  setting_blink_state = !setting_blink_state;
+  layer_mark_dirty(&unit_marker);
+}
+
 void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   switch(current_state) {
   case DONE:
@@ -192,6 +208,9 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
     break;
   case COUNTING_DOWN:
     handle_second_counting_down();
+    break;
+  case SETTING:
+    handle_second_setting();
     break;
   default:
     break;
@@ -213,7 +232,7 @@ void handle_init(AppContextRef ctx) {
 
   text_layer_init(&count_down, GRect(7, 54, 144, 168-54));
   text_layer_set_font(&count_down, custom_font);
-  text_layer_set_text(&count_down, "00:00:00");
+  update_time();
   layer_add_child(&window.layer, &count_down.layer);
 
   layer_init(&unit_marker, window.layer.frame);
