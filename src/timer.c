@@ -31,6 +31,11 @@ int total_seconds = 5 * 60;
 int current_seconds = 5 * 60;
 int last_set_time = -1;
 
+const VibePattern alarm_finished = {
+  .durations = (uint32_t []) {300, 150, 150, 150,  300, 150, 300},
+  .num_segments = 7
+};
+
 // Setting state
 
 enum SettingUnit {
@@ -90,9 +95,9 @@ void unit_marker_update_callback(Layer *me, GContext* ctx) {
   if (current_state == SETTING && setting_blink_state) {
     graphics_context_set_stroke_color(ctx, GColorBlack);
 
-    graphics_draw_line(ctx, GPoint(start, 96), GPoint(start + width, 96));
-    graphics_draw_line(ctx, GPoint(start, 97), GPoint(start + width, 97));
-    graphics_draw_line(ctx, GPoint(start, 98), GPoint(start + width, 98));
+    for (int i = 0; i < 4; i++) {
+      graphics_draw_line(ctx, GPoint(start, 95 + i), GPoint(start + width, 95 + i));
+    }
   }
 }
 
@@ -185,7 +190,7 @@ void handle_second_counting_down() {
   update_time();
 
   if (current_seconds == 0) {
-    vibes_double_pulse();
+    vibes_enqueue_custom_pattern(alarm_finished);
     current_state = DONE;
   }
 }
