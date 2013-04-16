@@ -105,7 +105,7 @@ void unit_marker_update_callback(Layer *me, GContext* ctx) {
   int start = 8 + (width + 14) * setting_unit;
 
   if (current_state == SETTING && setting_blink_state) {
-    graphics_context_set_stroke_color(ctx, COLOR_FOREGROUND);
+    graphics_context_set_stroke_color(ctx, COLOR_BACKGROUND);
 
     for (int i = 0; i < 4; i++) {
       graphics_draw_line(ctx, GPoint(start, 95 + i), GPoint(start + width, 95 + i));
