@@ -15,6 +15,9 @@
 #define LONG_CLICK_MS 700
 #define MULTI_CLICK_INTERVAL 10
 
+#define TOTAL_SECONDS_KEY 1
+#define TOTAL_SECONDS_DEFAULT 5 * 60
+
 enum State {
   DONE,
   SETTING,
@@ -34,7 +37,7 @@ Layer *unit_marker;
 
 enum State current_state = DONE;
 
-int total_seconds = 5 * 60;
+int total_seconds;
 int current_seconds = 5 * 60;
 int last_set_time = -1;
 
@@ -232,6 +235,9 @@ void handle_second_tick(struct tm* tick_time, TimeUnits units_changed) {
 }
 
 void handle_init(void) {
+  total_seconds = persist_exists(TOTAL_SECONDS_KEY) ?
+    persist_read_int(TOTAL_SECONDS_KEY) : TOTAL_SECONDS_DEFAULT;
+
   window = window_create();
   window_set_fullscreen(window, true);
   window_set_background_color(window, COLOR_BACKGROUND);
@@ -268,7 +274,7 @@ void handle_init(void) {
                       fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
   text_layer_set_text_color(time_text, COLOR_FOREGROUND);
   text_layer_set_background_color(time_text, GColorClear);
-
+  
   time_t now = time(NULL);
   struct tm *current_time = localtime(&now);
   update_time(current_time);
@@ -279,6 +285,7 @@ void handle_init(void) {
 
 
 void handle_deinit() {
+  persist_write_int(TOTAL_SECONDS_KEY, total_seconds);
   text_layer_destroy(title);
   text_layer_destroy(count_down);
   text_layer_destroy(time_text);
