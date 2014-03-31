@@ -1,0 +1,27 @@
+{
+  "uuid": "618ca58d-c0eb-49db-9856-034036aebc45",
+  "shortName": "Timer",
+  "longName": "Timer",
+  "companyName": "Micah Wylde",
+  "versionCode": 0,
+  "versionLabel": "0.4.0",
+  "watchapp": {
+    "watchface": false
+  },
+  "appKeys": {},
+  "resources": {
+    "media": [
+      {
+        "type": "font",
+        "name": "FONT_ROBOTO_32",
+        "file": "fonts/Roboto/Roboto-Bold_32.ttf"
+      },
+      {
+        "menuIcon": true,
+        "type": "png",
+        "name": "IMAGE_MENU_ICON",
+        "file": "images/menu_icon_timer.png"
+      }
+    ]
+  }
+}

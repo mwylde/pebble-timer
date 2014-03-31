@@ -1,16 +1,6 @@
-#include "pebble_os.h"
-#include "pebble_app.h"
-#include "pebble_fonts.h"
-
+#include "pebble.h"
+#include "time.h"
 #include "resource_ids.auto.h"
-
-
-#define MY_UUID { 0x61, 0x8C, 0xA5, 0x8D, 0xC0, 0xEB, 0x49, 0xDB, 0x98, 0x56, 0x03, 0x40, 0x36, 0xAE, 0xBC, 0x45 }
-PBL_APP_INFO(MY_UUID,
-             "Timer", "Micah Wylde",
-             0, 3, /* App version */
-             RESOURCE_ID_IMAGE_MENU_ICON,
-             APP_INFO_STANDARD_APP);
 
 #define WHITE_ON_BLACK
 
@@ -22,6 +12,9 @@ PBL_APP_INFO(MY_UUID,
 #define COLOR_BACKGROUND GColorBlack
 #endif
 
+#define LONG_CLICK_MS 700
+#define MULTI_CLICK_INTERVAL 10
+
 enum State {
   DONE,
   SETTING,
@@ -31,11 +24,13 @@ enum State {
 
 
 // Main window stuff
-Window window;
+Window *window;
 
-TextLayer title;
-TextLayer count_down;
-TextLayer time_text;
+TextLayer *title;
+TextLayer *count_down;
+TextLayer *time_text;
+
+Layer *unit_marker;
 
 enum State current_state = DONE;
 
@@ -65,27 +60,28 @@ void update_countdown() {
 
   static char time_text[] = " 00:00:00";
 
-  PblTm time;
-  time.tm_hour = current_seconds / (60 * 60);
-  time.tm_min  = (current_seconds - time.tm_hour * 60 * 60) / 60;
-  time.tm_sec  = current_seconds - time.tm_hour * 60 * 60 - time.tm_min * 60;
+  time_t now = time(NULL);
+  struct tm *time = localtime(&now);
+  
+  time->tm_hour = current_seconds / (60 * 60);
+  time->tm_min  = (current_seconds - time->tm_hour * 60 * 60) / 60;
+  time->tm_sec  = current_seconds - time->tm_hour * 60 * 60 - time->tm_min * 60;
 
-  string_format_time(time_text, sizeof(time_text), " %T", &time);
+  strftime(time_text, sizeof(time_text), " %T", time);
 
-  text_layer_set_text(&count_down, time_text);
+  text_layer_set_text(count_down, time_text);
 
   last_set_time = current_seconds;
 }
 
 
-Layer unit_marker;
 bool setting_blink_state = true;
 
 void draw_setting_unit() {
-  layer_mark_dirty(&unit_marker);  
+  layer_mark_dirty(unit_marker);  
 }
 
-void toggle_setting_mode(ClickRecognizerRef recognizer, Window *window) {
+void toggle_setting_mode(ClickRecognizerRef recognizer, void *window) {
   if (current_state == SETTING) {
     current_state = DONE;
   }
@@ -114,7 +110,7 @@ void unit_marker_update_callback(Layer *me, GContext* ctx) {
 }
 
 
-void select_pressed(ClickRecognizerRef recognizer, Window *window) {
+void select_pressed(ClickRecognizerRef recognizer, void *window) {
   if (current_state == SETTING) {
     setting_unit = (setting_unit + 1) % 3;
     setting_blink_state = true;
@@ -128,7 +124,7 @@ void select_pressed(ClickRecognizerRef recognizer, Window *window) {
   }
 }
 
-void select_long_release_handler(ClickRecognizerRef recognizer, Window *window) {
+void select_long_release_handler(ClickRecognizerRef recognizer, void *window) {
   // This is needed to avoid missing clicks. Seems to be a bug in the SDK.
 }
 
@@ -149,16 +145,15 @@ void increment_time(int direction) {
   }
 }
 
-
-void button_pressed_up(ClickRecognizerRef recognizer, Window *window) {
+void button_pressed_up(ClickRecognizerRef recognizer, void *window) {
   increment_time(1);
 }
 
-void button_pressed_down(ClickRecognizerRef recognizer, Window *window) {
+void button_pressed_down(ClickRecognizerRef recognizer, void *window) {
   increment_time(-1);
 }
 
-void reset_timer(ClickRecognizerRef recognizer, Window *window) {
+void reset_timer(ClickRecognizerRef recognizer, void *window) {
   if (current_state != SETTING) {
     current_state = DONE;
     current_seconds = total_seconds;
@@ -166,35 +161,18 @@ void reset_timer(ClickRecognizerRef recognizer, Window *window) {
   }
 }
 
+void main_click_provider(void *context) {
+  window_single_click_subscribe(BUTTON_ID_SELECT, select_pressed);
 
-void main_click_provider(ClickConfig **config, Window *window) {
-  // See ui/click.h for more information and default values.
+  window_long_click_subscribe(BUTTON_ID_SELECT, LONG_CLICK_MS,
+                              toggle_setting_mode, select_long_release_handler);
 
-  config[BUTTON_ID_SELECT]->click.handler = 
-    (ClickHandler) select_pressed;
+  window_multi_click_subscribe(BUTTON_ID_SELECT, 2, 2, 10, true, reset_timer);
 
-  config[BUTTON_ID_SELECT]->long_click.handler = 
-    (ClickHandler) toggle_setting_mode;
+  window_single_repeating_click_subscribe(BUTTON_ID_UP, 300, button_pressed_up);
+  window_single_repeating_click_subscribe(BUTTON_ID_DOWN, 300, button_pressed_down);  
 
-  config[BUTTON_ID_SELECT]->multi_click.handler = (ClickHandler) reset_timer;
-  config[BUTTON_ID_SELECT]->multi_click.min = 2;
-  config[BUTTON_ID_SELECT]->multi_click.max = 2;
-
-  config[BUTTON_ID_SELECT]->long_click.release_handler = 
-    (ClickHandler) select_long_release_handler;
-
-  config[BUTTON_ID_SELECT]->long_click.delay_ms = 700;
-
-  config[BUTTON_ID_UP]->click.handler = (ClickHandler) button_pressed_up;
-  config[BUTTON_ID_UP]->click.repeat_interval_ms = 300;
-
-  config[BUTTON_ID_DOWN]->click.handler = (ClickHandler) button_pressed_down;
-  config[BUTTON_ID_DOWN]->click.repeat_interval_ms = 300;
-
-
-  (void)window;
 }
-
 
 void handle_second_counting_down() {
   current_seconds--;
@@ -214,10 +192,10 @@ void handle_second_waiting() {
 
 void handle_second_setting() {
   setting_blink_state = !setting_blink_state;
-  layer_mark_dirty(&unit_marker);
+  layer_mark_dirty(unit_marker);
 }
 
-void update_time(PblTm *tick_time) {
+void update_time(struct tm *tick_time) {
   static char time[] = "Xxxxxxxxx - 00 00:00";
 
   char *time_format;
@@ -228,12 +206,12 @@ void update_time(PblTm *tick_time) {
     time_format = "%B %e   %I:%M";
   }
 
-  string_format_time(time, sizeof(time), time_format, tick_time);
+  strftime(time, sizeof(time), time_format, tick_time);
 
-  text_layer_set_text(&time_text, time);
+  text_layer_set_text(time_text, time);
 }
 
-void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
+void handle_second_tick(struct tm* tick_time, TimeUnits units_changed) {
   switch(current_state) {
   case DONE:
     handle_second_waiting();
@@ -248,64 +226,69 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
     break;
   }
 
-  if (t->units_changed & MINUTE_UNIT) {
-    update_time(t->tick_time);
+  if (units_changed & MINUTE_UNIT) {
+    update_time(tick_time);
   }
 }
 
-void handle_init(AppContextRef ctx) {
-  (void)ctx;
+void handle_init(void) {
+  window = window_create();
+  window_set_fullscreen(window, true);
+  window_set_background_color(window, COLOR_BACKGROUND);
+  window_stack_push(window, true /* Animated */);
 
-  resource_init_current_app(&TIMER_RESOURCES);
-
-  window_init(&window, "Main Window");
-  window_stack_push(&window, true /* Animated */);
-
-  window_set_background_color(&window, COLOR_BACKGROUND);
-  window_set_fullscreen(&window, true);
-  window_set_click_config_provider(&window, (ClickConfigProvider) main_click_provider);
+  Layer *window_layer = window_get_root_layer(window);
+  
+  window_set_click_config_provider(window, (ClickConfigProvider) main_click_provider);
 
   GFont custom_font = \
     fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_32));
 
-  text_layer_init(&count_down, GRect(0, 62, 144, 40));
-  text_layer_set_font(&count_down, custom_font);
-  text_layer_set_text_color(&count_down, COLOR_BACKGROUND);
-  text_layer_set_background_color(&count_down, COLOR_FOREGROUND);
+  count_down = text_layer_create(GRect(0, 62, 144, 40));
+  text_layer_set_font(count_down, custom_font);
+  text_layer_set_text_color(count_down, COLOR_BACKGROUND);
+  text_layer_set_background_color(count_down, COLOR_FOREGROUND);
   update_countdown();
-  layer_add_child(&window.layer, &count_down.layer);
+  layer_add_child(window_layer, text_layer_get_layer(count_down));
 
-  layer_init(&unit_marker, window.layer.frame);
-  unit_marker.update_proc = unit_marker_update_callback;
-  layer_add_child(&window.layer, &unit_marker);
+  unit_marker = layer_create(
+    layer_get_frame(window_layer));
+  layer_set_update_proc(unit_marker, unit_marker_update_callback);
+  layer_add_child(window_layer, unit_marker);
 
-  text_layer_init(&title, GRect(30, 5, 100, 24));
-  text_layer_set_font(&title, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-  text_layer_set_text_color(&title, COLOR_FOREGROUND);
-  text_layer_set_background_color(&title, GColorClear);
-  text_layer_set_text(&title, "pebble timer");
-  layer_add_child(&window.layer, &title.layer);
+  title = text_layer_create(GRect(30, 5, 100, 24));
+  text_layer_set_font(title, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  text_layer_set_text_color(title, COLOR_FOREGROUND);
+  text_layer_set_background_color(title, GColorClear);
+  text_layer_set_text(title, "pebble timer");
+  layer_add_child(window_layer, text_layer_get_layer(title));
 
-  text_layer_init(&time_text, GRect(20, 130, 110, 24));
-  text_layer_set_font(&time_text, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-  text_layer_set_text_color(&time_text, COLOR_FOREGROUND);
-  text_layer_set_background_color(&time_text, GColorClear);
-  PblTm time;
-  get_time(&time);
-  update_time(&time);
-  layer_add_child(&window.layer, &time_text.layer);
+  time_text = text_layer_create(GRect(20, 130, 110, 24));
+  text_layer_set_font(time_text,
+                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  text_layer_set_text_color(time_text, COLOR_FOREGROUND);
+  text_layer_set_background_color(time_text, GColorClear);
+
+  time_t now = time(NULL);
+  struct tm *current_time = localtime(&now);
+  update_time(current_time);
+  layer_add_child(window_layer, text_layer_get_layer(time_text));
+
+  tick_timer_service_subscribe(SECOND_UNIT, &handle_second_tick);
 }
 
 
-void pbl_main(void *params) {
-  PebbleAppHandlers handlers = {
-    .init_handler = &handle_init,
+void handle_deinit() {
+  text_layer_destroy(title);
+  text_layer_destroy(count_down);
+  text_layer_destroy(time_text);
+  layer_destroy(unit_marker);
+  window_destroy(window);
+}
 
-    .tick_info = {
-      .tick_handler = &handle_second_tick,
-      .tick_units = SECOND_UNIT
-    }
-  };
-  app_event_loop(params, &handlers);
+int main(void) {
+  handle_init();
+  app_event_loop();
+  handle_deinit();
 }
 
