@@ -31,6 +31,7 @@ Window *window;
 
 TextLayer *title;
 TextLayer *count_down;
+char count_down_text[10];
 TextLayer *time_text;
 
 Layer *unit_marker;
@@ -38,7 +39,7 @@ Layer *unit_marker;
 enum State current_state = DONE;
 
 int total_seconds;
-int current_seconds = 5 * 60;
+int current_seconds;
 int last_set_time = -1;
 
 const VibePattern alarm_finished = {
@@ -61,19 +62,15 @@ void update_countdown() {
     return;
   }
 
-  static char time_text[] = " 00:00:00";
+  static char time_fmt[] = " %02d:%02d:%02d";
+  static char count_down_text[] = " 00:00:00";
 
-  time_t now = time(NULL);
-  struct tm *time = localtime(&now);
-  
-  time->tm_hour = current_seconds / (60 * 60);
-  time->tm_min  = (current_seconds - time->tm_hour * 60 * 60) / 60;
-  time->tm_sec  = current_seconds - time->tm_hour * 60 * 60 - time->tm_min * 60;
+  int hour = current_seconds / (60 * 60);
+  int min  = (current_seconds - hour * 60 * 60) / 60;
+  int sec  = current_seconds - hour * 60 * 60 - min * 60;
 
-  strftime(time_text, sizeof(time_text), " %T", time);
-
-  text_layer_set_text(count_down, time_text);
-
+  snprintf(count_down_text, sizeof(count_down_text), time_fmt, hour, min, sec);
+  text_layer_set_text(count_down, count_down_text);
   last_set_time = current_seconds;
 }
 
@@ -254,6 +251,7 @@ void handle_init(void) {
   text_layer_set_font(count_down, custom_font);
   text_layer_set_text_color(count_down, COLOR_BACKGROUND);
   text_layer_set_background_color(count_down, COLOR_FOREGROUND);
+  text_layer_set_text(count_down, count_down_text);
   update_countdown();
   layer_add_child(window_layer, text_layer_get_layer(count_down));
 
